@@ -4,19 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDKJC MANGA - ระบบชุมชนอัปโหลดมังงะ</title>
+    <!-- โหลด Firebase SDK พร้อม Config ของคุณ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // === ⚠️ แทนที่ค่า Config ด้วยโปรเจกต์ Firebase ของคุณเอง ===
+        // === 🛠️ ค่า Config ที่ใส่ให้เรียบร้อยแล้ว ===
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyAxySLZayIwJKirvxQyNbmrP87npZsynIU",
+            authDomain: "tdkjc-manga2.firebaseapp.com",
+            projectId: "tdkjc-manga2",
+            storageBucket: "tdkjc-manga2.firebasestorage.app",
+            messagingSenderId: "788254417446",
+            appId: "1:788254417446:web:675735858151e11a2efce7",
+            measurementId: "G-L8Z7SVKTYJ"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -282,6 +284,7 @@
 </head>
 <body>
 
+    <!-- แถบเมนูด้านบน -->
     <header>
         <div class="logo" onclick="switchSection('home-section')">📚 TDKJC MANGA</div>
         <nav>
@@ -290,8 +293,10 @@
         </nav>
     </header>
 
+    <!-- ส่วนเนื้อหาหลัก -->
     <main class="container">
 
+        <!-- 1. หน้าแรก: รายการมังงะชุมชน -->
         <section id="home-section" class="view-section active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h2>มังงะทั้งหมดในชุมชน TDKJC</h2>
@@ -302,6 +307,7 @@
             </div>
         </section>
 
+        <!-- 2. หน้าล็อกอิน / สมัครสมาชิก -->
         <section id="login-section" class="view-section">
             <div class="card-box" style="max-width: 400px; margin: 0 auto;">
                 <h2>เข้าสู่ระบบเพื่ออัปโหลด</h2>
@@ -319,6 +325,7 @@
             </div>
         </section>
 
+        <!-- 3. หน้าเพิ่มมังงะเรื่องใหม่ -->
         <section id="add-manga-section" class="view-section">
             <button class="back-btn" onclick="switchSection('home-section')">← กลับหน้าแรก</button>
             <div class="card-box">
@@ -339,6 +346,7 @@
             </div>
         </section>
 
+        <!-- 4. หน้ารายละเอียดมังงะ & เพิ่มตอน -->
         <section id="detail-section" class="view-section">
             <button class="back-btn" onclick="switchSection('home-section')">← กลับหน้าแรก</button>
             <div class="manga-header">
@@ -350,6 +358,7 @@
                 </div>
             </div>
 
+            <!-- กล่องเพิ่มตอน -->
             <div class="card-box" id="add-chapter-box" style="display: none;">
                 <h2>เพิ่มตอนใหม่ให้กับเรื่องนี้</h2>
                 <div class="form-group">
@@ -365,15 +374,18 @@
 
             <h3>รายชื่อตอนทั้งหมด</h3>
             <ul class="chapter-list" id="chapter-list" style="margin-top: 10px;">
-                </ul>
+                <!-- รายชื่อตอน -->
+            </ul>
         </section>
 
+        <!-- 5. หน้าอ่านมังงะ -->
         <section id="read-section" class="view-section">
             <button class="back-btn" onclick="showDetail(currentMangaId)">← กลับหน้ารายละเอียด</button>
             <h2 id="read-chapter-title" style="text-align: center; margin-bottom: 20px;">ตอนที่ X</h2>
             
             <div class="reader-container" id="reader-images">
-                </div>
+                <!-- รูปภาพหน้ามังงะ -->
+            </div>
         </section>
 
     </main>
