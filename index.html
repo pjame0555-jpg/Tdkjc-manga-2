@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDKJC MANGA - ระบบชุมชนอัปโหลดมังงะ</title>
-    <!-- โหลด Firebase SDK พร้อม Config ของคุณ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // === 🛠️ ค่า Config ที่ใส่ให้เรียบร้อยแล้ว ===
+        // === 🛠️ ค่า Config ของคุณ ===
         const firebaseConfig = {
             apiKey: "AIzaSyAxySLZayIwJKirvxQyNbmrP87npZsynIU",
             authDomain: "tdkjc-manga2.firebaseapp.com",
@@ -284,7 +283,6 @@
 </head>
 <body>
 
-    <!-- แถบเมนูด้านบน -->
     <header>
         <div class="logo" onclick="switchSection('home-section')">📚 TDKJC MANGA</div>
         <nav>
@@ -293,10 +291,8 @@
         </nav>
     </header>
 
-    <!-- ส่วนเนื้อหาหลัก -->
     <main class="container">
 
-        <!-- 1. หน้าแรก: รายการมังงะชุมชน -->
         <section id="home-section" class="view-section active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h2>มังงะทั้งหมดในชุมชน TDKJC</h2>
@@ -307,14 +303,13 @@
             </div>
         </section>
 
-        <!-- 2. หน้าล็อกอิน / สมัครสมาชิก -->
         <section id="login-section" class="view-section">
             <div class="card-box" style="max-width: 400px; margin: 0 auto;">
                 <h2>เข้าสู่ระบบเพื่ออัปโหลด</h2>
                 <p style="color:#888; font-size:0.9rem; margin-bottom:15px;">กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งานระบบชุมชน</p>
                 <div class="form-group">
                     <label>อีเมล (Email)</label>
-                    <input type="email" id="auth-email" placeholder="example@email.com">
+                    <input type="email" id="auth-email" placeholder="example@gmail.com">
                 </div>
                 <div class="form-group">
                     <label>รหัสผ่าน (Password)</label>
@@ -325,7 +320,6 @@
             </div>
         </section>
 
-        <!-- 3. หน้าเพิ่มมังงะเรื่องใหม่ -->
         <section id="add-manga-section" class="view-section">
             <button class="back-btn" onclick="switchSection('home-section')">← กลับหน้าแรก</button>
             <div class="card-box">
@@ -346,7 +340,6 @@
             </div>
         </section>
 
-        <!-- 4. หน้ารายละเอียดมังงะ & เพิ่มตอน -->
         <section id="detail-section" class="view-section">
             <button class="back-btn" onclick="switchSection('home-section')">← กลับหน้าแรก</button>
             <div class="manga-header">
@@ -358,34 +351,31 @@
                 </div>
             </div>
 
-            <!-- กล่องเพิ่มตอน -->
             <div class="card-box" id="add-chapter-box" style="display: none;">
-                <h2>เพิ่มตอนใหม่ให้กับเรื่องนี้</h2>
+                <h2>เพิ่มตอนใหม่และภาพประกอบมังงะ</h2>
                 <div class="form-group">
                     <label>ชื่อตอน (เช่น ตอนที่ 1: จุดเริ่มต้น)</label>
                     <input type="text" id="new-chapter-title" placeholder="ชื่อตอน...">
                 </div>
                 <div class="form-group">
-                    <label>หน้ามังงะ (เลือกไฟล์ภาพหลายไฟล์พร้อมกันจากเครื่อง)</label>
+                    <label>ภาพประกอบหน้ามังงะ (เลือกไฟล์ภาพ **หลายรูปพร้อมกันได้**) 👇</label>
                     <input type="file" id="new-chapter-pages" accept="image/*" multiple>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">💡 สามารถเลือกภาพหลายๆ หน้าพร้อมกันได้เลย ระบบจะเรียงตามที่คุณเลือก</p>
                 </div>
-                <button class="btn-primary" onclick="saveNewChapter()">อัปโหลดตอนใหม่</button>
+                <button class="btn-primary" onclick="saveNewChapter()">อัปโหลดตอนและภาพประกอบ</button>
             </div>
 
             <h3>รายชื่อตอนทั้งหมด</h3>
             <ul class="chapter-list" id="chapter-list" style="margin-top: 10px;">
-                <!-- รายชื่อตอน -->
-            </ul>
+                </ul>
         </section>
 
-        <!-- 5. หน้าอ่านมังงะ -->
         <section id="read-section" class="view-section">
             <button class="back-btn" onclick="showDetail(currentMangaId)">← กลับหน้ารายละเอียด</button>
             <h2 id="read-chapter-title" style="text-align: center; margin-bottom: 20px;">ตอนที่ X</h2>
             
             <div class="reader-container" id="reader-images">
-                <!-- รูปภาพหน้ามังงะ -->
-            </div>
+                </div>
         </section>
 
     </main>
@@ -517,7 +507,7 @@
             const pageFiles = document.getElementById('new-chapter-pages').files;
 
             if (!title || pageFiles.length === 0) {
-                alert('กรุณากรอกชื่อตอนและเลือกไฟล์รูปภาพหน้ามังงะอย่างน้อย 1 รูป');
+                alert('กรุณากรอกชื่อตอนและเลือกไฟล์ภาพประกอบหน้ามังงะอย่างน้อย 1 รูป');
                 return;
             }
 
@@ -544,7 +534,7 @@
                             currentChapters.push(newChapter);
 
                             await updateDoc(mangaRef, { chapters: currentChapters });
-                            alert('เพิ่มตอนใหม่สำเร็จ!');
+                            alert('เพิ่มตอนและภาพประกอบสำเร็จ!');
 
                             document.getElementById('new-chapter-title').value = '';
                             document.getElementById('new-chapter-pages').value = '';
