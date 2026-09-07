@@ -7,7 +7,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // === 🛠️ ค่า Config ของคุณ ===
         const firebaseConfig = {
@@ -118,6 +118,21 @@
         }
 
         .btn-primary:hover {
+            opacity: 0.8;
+        }
+
+        .btn-danger {
+            background: #ff5252;
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-danger:hover {
             opacity: 0.8;
         }
 
@@ -348,6 +363,7 @@
                     <h1 id="detail-title">ชื่อเรื่อง</h1>
                     <p id="detail-desc" style="margin-top: 10px; color: #aaa;"></p>
                     <p id="detail-owner" style="margin-top: 10px; font-size: 0.85rem; color: #ff9800;"></p>
+                    <div id="delete-manga-area" style="margin-top: 15px;"></div>
                 </div>
             </div>
 
@@ -358,9 +374,8 @@
                     <input type="text" id="new-chapter-title" placeholder="ชื่อตอน...">
                 </div>
                 <div class="form-group">
-                    <label>ภาพประกอบหน้ามังงะ (เลือกไฟล์ภาพ **หลายรูปพร้อมกันได้**) 👇</label>
+                    <label>ภาพประกอบหน้ามังงะ (เลือกไฟล์ภาพหลายรูปพร้อมกันได้) 👇</label>
                     <input type="file" id="new-chapter-pages" accept="image/*" multiple>
-                    <p style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">💡 สามารถเลือกภาพหลายๆ หน้าพร้อมกันได้เลย ระบบจะเรียงตามที่คุณเลือก</p>
                 </div>
                 <button class="btn-primary" onclick="saveNewChapter()">อัปโหลดตอนและภาพประกอบ</button>
             </div>
@@ -386,7 +401,7 @@
 
     <script type="module">
         import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, addDoc, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         window.switchSection = function(sectionId) {
             document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -490,6 +505,14 @@
             document.getElementById('detail-desc').innerText = manga.description;
             document.getElementById('detail-owner').innerText = `ผู้อัปโหลด: ${manga.owner || 'ไม่ระบุ'}`;
 
+            // จัดการปุ่มลบมังงะ (แสดงเฉพาะเจ้าของที่ล็อกอินตรงกัน)
+            const deleteArea = document.getElementById('delete-manga-area');
+            if (window.currentUser && window.currentUser.email === manga.owner) {
+                deleteArea.innerHTML = `<button class="btn-danger" onclick="deleteManga('${mangaId}')">🗑️ ลบมังงะเรื่องนี้ออกจากระบบ</button>`;
+            } else {
+                deleteArea.innerHTML = '';
+            }
+
             const chapterListEl = document.getElementById('chapter-list');
             if (!manga.chapters || manga.chapters.length === 0) {
                 chapterListEl.innerHTML = '<li style="color:#777; cursor:default;">ยังไม่มีตอนในเรื่องนี้</li>';
@@ -500,6 +523,19 @@
             }
 
             switchSection('detail-section');
+        };
+
+        // ฟังก์ชันลบมังงะออกจาก Firestore
+        window.deleteManga = async function(mangaId) {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบมังงะเรื่องนี้? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
+                try {
+                    await deleteDoc(doc(window.firebaseDb, "mangas", mangaId));
+                    alert('ลบมังงะสำเร็จ!');
+                    switchSection('home-section');
+                } catch (error) {
+                    alert('เกิดข้อผิดพลาดในการลบ: ' + error.message);
+                }
+            }
         };
 
         window.saveNewChapter = function() {
