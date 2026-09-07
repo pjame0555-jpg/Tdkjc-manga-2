@@ -3,7 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TDKJC MANGA - เว็บอ่านและอัปโหลดมังงะ</title>
+    <title>TDKJC MANGA - ระบบชุมชนอัปโหลดมังงะ</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // === ⚠️ แทนที่ค่า Config ด้วยโปรเจกต์ Firebase ของคุณเอง ===
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.currentUser = null;
+        window.currentMangaId = null;
+        window.mangaData = [];
+
+        // ติดตามสถานะล็อกอินของผู้ใช้
+        onAuthStateChanged(auth, (user) => {
+            const authNavArea = document.getElementById('auth-nav-area');
+            const globalAddBtn = document.getElementById('global-add-manga-btn');
+            const addChapterBox = document.getElementById('add-chapter-box');
+
+            if (user) {
+                window.currentUser = user;
+                authNavArea.innerHTML = `<span>👤 ${user.email}</span> <a onclick="handleLogout()" style="color:#ff5252; margin-left:15px; cursor:pointer;">ออกจากระบบ</a>`;
+                if(globalAddBtn) globalAddBtn.style.display = 'block';
+                if(addChapterBox) addChapterBox.style.display = 'block';
+            } else {
+                window.currentUser = null;
+                authNavArea.innerHTML = `<button class="btn-primary" onclick="switchSection('login-section')">เข้าสู่ระบบ / สมัครสมาชิก</button>`;
+                if(globalAddBtn) globalAddBtn.style.display = 'none';
+                if(addChapterBox) addChapterBox.style.display = 'none';
+            }
+        });
+
+        // ดึงข้อมูลมังงะทั้งหมดจาก Firestore
+        window.loadMangaFromFirestore = async function() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "mangas"));
+                window.mangaData = [];
+                querySnapshot.forEach((docSnap) => {
+                    window.mangaData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderMangaList();
+            } catch (error) {
+                console.error("Error loading manga: ", error);
+            }
+        };
+
+        window.loadMangaFromFirestore();
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -40,15 +101,8 @@
             gap: 15px;
         }
 
-        header nav a, header nav span {
+        header nav span {
             color: #bbb;
-            text-decoration: none;
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-
-        header nav a:hover {
-            color: #ff9800;
         }
 
         .btn-primary {
@@ -80,7 +134,6 @@
             display: block;
         }
 
-        /* ฟอร์มและกล่องจัดการ */
         .card-box {
             background: #1e1e1e;
             padding: 25px;
@@ -113,7 +166,6 @@
             border-radius: 5px;
         }
 
-        /* Grid รายการมังงะ */
         .manga-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -166,7 +218,6 @@
             color: #000;
         }
 
-        /* หน้ารายละเอียดมังงะ */
         .manga-header {
             display: flex;
             gap: 20px;
@@ -204,7 +255,6 @@
             color: #ff9800;
         }
 
-        /* หน้าอ่านมังงะ */
         .reader-container {
             display: flex;
             flex-direction: column;
@@ -220,12 +270,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
 
-        .reader-nav {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-
         footer {
             text-align: center;
             padding: 20px;
@@ -234,14 +278,6 @@
             margin-top: 50px;
             border-top: 1px solid #333;
         }
-
-        @media (max-width: 600px) {
-            .manga-header {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-            }
-        }
     </style>
 </head>
 <body>
@@ -249,9 +285,8 @@
     <header>
         <div class="logo" onclick="switchSection('home-section')">📚 TDKJC MANGA</div>
         <nav>
-            <a onclick="switchSection('home-section')">หน้าแรก</a>
-            <div id="auth-nav-area">
-                </div>
+            <a onclick="switchSection('home-section')" style="color:#bbb; cursor:pointer;">หน้าแรก</a>
+            <div id="auth-nav-area"></div>
         </nav>
     </header>
 
@@ -259,31 +294,38 @@
 
         <section id="home-section" class="view-section active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>มังงะทั้งหมดในระบบ</h2>
-                <button class="btn-primary" id="add-manga-btn" style="display:none;" onclick="switchSection('add-manga-section')">+ เพิ่มมังงะเรื่องใหม่</button>
+                <h2>มังงะทั้งหมดในชุมชน TDKJC</h2>
+                <button class="btn-primary" id="global-add-manga-btn" style="display:none;" onclick="switchSection('add-manga-section')">+ เพิ่มมังงะเรื่องใหม่</button>
             </div>
             <div class="manga-grid" id="manga-list">
-                </div>
+                <p style="color:#777;">กำลังโหลดข้อมูลมังงะ...</p>
+            </div>
         </section>
 
         <section id="login-section" class="view-section">
             <div class="card-box" style="max-width: 400px; margin: 0 auto;">
-                <h2>เข้าสู่ระบบ TDKJC MANGA</h2>
+                <h2>เข้าสู่ระบบเพื่ออัปโหลด</h2>
+                <p style="color:#888; font-size:0.9rem; margin-bottom:15px;">กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งานระบบชุมชน</p>
                 <div class="form-group">
-                    <label>ชื่อผู้ใช้งาน (Username)</label>
-                    <input type="text" id="login-username" placeholder="กรอกชื่อผู้ใช้...">
+                    <label>อีเมล (Email)</label>
+                    <input type="email" id="auth-email" placeholder="example@email.com">
                 </div>
-                <button class="btn-primary" style="width: 100%;" onclick="handleLogin()">เข้าสู่ระบบ / สมัครสมาชิก</button>
+                <div class="form-group">
+                    <label>รหัสผ่าน (Password)</label>
+                    <input type="password" id="auth-password" placeholder="รหัสผ่านอย่างน้อย 6 ตัวอักษร">
+                </div>
+                <button class="btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="handleEmailLogin()">เข้าสู่ระบบ</button>
+                <button class="btn-primary" style="width: 100%; background: #444; color:#fff;" onclick="handleEmailRegister()">สมัครสมาชิกใหม่</button>
             </div>
         </section>
 
         <section id="add-manga-section" class="view-section">
             <button class="back-btn" onclick="switchSection('home-section')">← กลับหน้าแรก</button>
             <div class="card-box">
-                <h2>เพิ่มมังงะเรื่องใหม่</h2>
+                <h2>เพิ่มมังงะเรื่องใหม่เข้าสู่ระบบ</h2>
                 <div class="form-group">
                     <label>ชื่อเรื่องมังงะ</label>
-                    <input type="text" id="new-manga-title" placeholder="เช่น วันพีช">
+                    <input type="text" id="new-manga-title" placeholder="ชื่อเรื่อง...">
                 </div>
                 <div class="form-group">
                     <label>ภาพปกมังงะ (เลือกไฟล์ภาพจากเครื่อง)</label>
@@ -293,7 +335,7 @@
                     <label>เรื่องย่อ</label>
                     <textarea id="new-manga-desc" rows="3" placeholder="รายละเอียดเนื้อเรื่อง..."></textarea>
                 </div>
-                <button class="btn-primary" onclick="saveNewManga()">บันทึกมังงะ</button>
+                <button class="btn-primary" onclick="saveNewManga()">เผยแพร่มังงะสู่สาธารณะ</button>
             </div>
         </section>
 
@@ -315,7 +357,7 @@
                     <input type="text" id="new-chapter-title" placeholder="ชื่อตอน...">
                 </div>
                 <div class="form-group">
-                    <label>หน้ามังงะ (เลือกไฟล์ภาพหลายไฟล์พร้อมกันจากเครื่องได้)</label>
+                    <label>หน้ามังงะ (เลือกไฟล์ภาพหลายไฟล์พร้อมกันจากเครื่อง)</label>
                     <input type="file" id="new-chapter-pages" accept="image/*" multiple>
                 </div>
                 <button class="btn-primary" onclick="saveNewChapter()">อัปโหลดตอนใหม่</button>
@@ -337,95 +379,68 @@
     </main>
 
     <footer>
-        <p>&copy; 2026 TDKJC MANGA. ข้อมูลถูกบันทึกไว้อย่างปลอดภัยในเบราว์เซอร์ของคุณ</p>
+        <p>&copy; 2026 TDKJC MANGA. แพลตฟอร์มชุมชนแบ่งปันมังงะออนไลน์</p>
     </footer>
 
-    <script>
-        // โหลดข้อมูลเริ่มต้น หรือดึงจาก localStorage ไม่ให้ข้อมูลหาย
-        let mangaData = JSON.parse(localStorage.getItem('tdkjc_manga_data')) || [
-            {
-                id: 1,
-                title: "โซโล่ เลเวลอัพ (Demo)",
-                cover: "https://via.placeholder.com/150/333/fff?text=Solo+Leveling",
-                description: "เรื่องราวของฮันเตอร์สุดกากที่ได้รับโอกาสพลิกชีวิต...",
-                owner: "Admin",
-                chapters: [
-                    { id: 101, title: "ตอนที่ 1: จุดเริ่มต้น", pages: ["https://via.placeholder.com/800x1200/222/fff?text=Page+1", "https://via.placeholder.com/800x1200/333/fff?text=Page+2"] }
-                ]
-            }
-        ];
+    <script type="module">
+        import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        let currentUser = localStorage.getItem('tdkjc_current_user') || null;
-        let currentMangaId = null;
-
-        // บันทึกข้อมูลลง LocalStorage
-        function saveData() {
-            localStorage.setItem('tdkjc_manga_data', JSON.stringify(mangaData));
-        }
-
-        // จัดการระบบสลับหน้าจอ (Views)
-        function switchSection(sectionId) {
+        window.switchSection = function(sectionId) {
             document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
             document.getElementById(sectionId).classList.add('active');
             window.scrollTo(0, 0);
 
             if (sectionId === 'home-section') {
-                renderMangaList();
-                updateAuthNav();
+                window.loadMangaFromFirestore();
             }
-        }
+        };
 
-        // ระบบล็อกอินง่ายๆ
-        function handleLogin() {
-            const usernameInput = document.getElementById('login-username').value.trim();
-            if (!usernameInput) {
-                alert('กรุณากรอกชื่อผู้ใช้งาน');
-                return;
+        window.handleEmailLogin = async function() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value.trim();
+            try {
+                await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+                alert('เข้าสู่ระบบสำเร็จ!');
+                switchSection('home-section');
+            } catch (error) {
+                alert('เข้าสู่ระบบไม่สำเร็จ: ' + error.message);
             }
-            currentUser = usernameInput;
-            localStorage.setItem('tdkjc_current_user', currentUser);
-            alert('เข้าสู่ระบบสำเร็จในชื่อ: ' + currentUser);
-            switchSection('home-section');
-        }
+        };
 
-        function handleLogout() {
-            currentUser = null;
-            localStorage.removeItem('tdkjc_current_user');
+        window.handleEmailRegister = async function() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value.trim();
+            try {
+                await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+                alert('สมัครสมาชิกสำเร็จ!');
+                switchSection('home-section');
+            } catch (error) {
+                alert('สมัครสมาชิกไม่สำเร็จ: ' + error.message);
+            }
+        };
+
+        window.handleLogout = async function() {
+            await signOut(window.firebaseAuth);
             alert('ออกจากระบบแล้ว');
             switchSection('home-section');
-        }
+        };
 
-        // อัปเดตแถบเมนูด้านบนตามสถานะล็อกอิน
-        function updateAuthNav() {
-            const authNavArea = document.getElementById('auth-nav-area');
-            const addMangaBtn = document.getElementById('add-manga-btn');
-
-            if (currentUser) {
-                authNavArea.innerHTML = `<span>👤 ${currentUser}</span> <a onclick="handleLogout()" style="color:#ff5252; margin-left:15px;">ออกจากระบบ</a>`;
-                addMangaBtn.style.display = 'block';
-            } else {
-                authNavArea.innerHTML = `<button class="btn-primary" onclick="switchSection('login-section')">เข้าสู่ระบบ</button>`;
-                addMangaBtn.style.display = 'none';
-            }
-        }
-
-        // แสดงรายการมังงะหน้าแรก
-        function renderMangaList() {
+        window.renderMangaList = function() {
             const listEl = document.getElementById('manga-list');
-            if (mangaData.length === 0) {
-                listEl.innerHTML = '<p style="color:#777;">ยังไม่มีมังงะในระบบ มาเพิ่มเรื่องแรกกันเถอะ!</p>';
+            if (window.mangaData.length === 0) {
+                listEl.innerHTML = '<p style="color:#777;">ยังไม่มีมังงะในระบบ เข้าสู่ระบบแล้วมาเพิ่มเรื่องแรกกันเลย!</p>';
                 return;
             }
-            listEl.innerHTML = mangaData.map(manga => `
-                <div class="manga-card" onclick="showDetail(${manga.id})">
+            listEl.innerHTML = window.mangaData.map(manga => `
+                <div class="manga-card" onclick="showDetail('${manga.id}')">
                     <img src="${manga.cover}" alt="${manga.title}">
                     <h3>${manga.title}</h3>
                 </div>
             `).join('');
-        }
+        };
 
-        // บันทึกมังงะใหม่จากไฟล์
-        function saveNewManga() {
+        window.saveNewManga = function() {
             const title = document.getElementById('new-manga-title').value.trim();
             const desc = document.getElementById('new-manga-desc').value.trim();
             const coverFile = document.getElementById('new-manga-cover').files[0];
@@ -436,62 +451,56 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const newManga = {
-                    id: Date.now(),
-                    title: title,
-                    cover: e.target.result, // แปลงไฟล์ภาพเป็น Base64 เก็บไว้ไม่ให้หาย
-                    description: desc || 'ไม่มีคำอธิบาย',
-                    owner: currentUser,
-                    chapters: []
-                };
+            reader.onload = async function(e) {
+                try {
+                    const newManga = {
+                        title: title,
+                        cover: e.target.result,
+                        description: desc || 'ไม่มีคำอธิบาย',
+                        owner: window.currentUser.email,
+                        chapters: [],
+                        createdAt: Date.now()
+                    };
 
-                mangaData.push(newManga);
-                saveData(); // บันทึกลง LocalStorage ทันที
-                alert('เพิ่มมังงะสำเร็จ!');
-                document.getElementById('new-manga-title').value = '';
-                document.getElementById('new-manga-desc').value = '';
-                document.getElementById('new-manga-cover').value = '';
-                switchSection('home-section');
+                    await addDoc(collection(window.firebaseDb, "mangas"), newManga);
+                    alert('เพิ่มมังงะสำเร็จ!');
+                    document.getElementById('new-manga-title').value = '';
+                    document.getElementById('new-manga-desc').value = '';
+                    document.getElementById('new-manga-cover').value = '';
+                    switchSection('home-section');
+                } catch (error) {
+                    alert('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+                }
             };
             reader.readAsDataURL(coverFile);
-        }
+        };
 
-        // แสดงหน้ารายละเอียดมังงะ
-        function showDetail(mangaId) {
-            currentMangaId = mangaId;
-            const manga = mangaData.find(m => m.id === mangaId);
-            if (!manga) return;
+        window.showDetail = async function(mangaId) {
+            window.currentMangaId = mangaId;
+            const docRef = doc(window.firebaseDb, "mangas", mangaId);
+            const docSnap = await getDoc(docRef);
+
+            if (!docSnap.exists()) return;
+            const manga = docSnap.data();
 
             document.getElementById('detail-cover').src = manga.cover;
             document.getElementById('detail-title').innerText = manga.title;
             document.getElementById('detail-desc').innerText = manga.description;
             document.getElementById('detail-owner').innerText = `ผู้อัปโหลด: ${manga.owner || 'ไม่ระบุ'}`;
 
-            // แสดงฟอร์มเพิ่มตอนเฉพาะผู้ที่ล็อกอินแล้ว
-            const addChapterBox = document.getElementById('add-chapter-box');
-            if (currentUser) {
-                addChapterBox.style.display = 'block';
-            } else {
-                addChapterBox.style.display = 'none';
-            }
-
             const chapterListEl = document.getElementById('chapter-list');
-            if (manga.chapters.length === 0) {
+            if (!manga.chapters || manga.chapters.length === 0) {
                 chapterListEl.innerHTML = '<li style="color:#777; cursor:default;">ยังไม่มีตอนในเรื่องนี้</li>';
             } else {
-                chapterListEl.innerHTML = manga.chapters.map(ch => `
-                    <li onclick="readChapter(${manga.id}, ${ch.id})">${ch.title}</li>
+                chapterListEl.innerHTML = manga.chapters.map((ch, index) => `
+                    <li onclick="readChapter('${mangaId}', ${index})">${ch.title}</li>
                 `).join('');
             }
 
-            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-            document.getElementById('detail-section').classList.add('active');
-            window.scrollTo(0, 0);
-        }
+            switchSection('detail-section');
+        };
 
-        // บันทึกตอนใหม่จากไฟล์รูปภาพหลายรูป
-        function saveNewChapter() {
+        window.saveNewChapter = function() {
             const title = document.getElementById('new-chapter-title').value.trim();
             const pageFiles = document.getElementById('new-chapter-pages').files;
 
@@ -500,44 +509,50 @@
                 return;
             }
 
-            const manga = mangaData.find(m => m.id === currentMangaId);
-            if (!manga) return;
-
             let loadedPages = 0;
             let pageDataUrls = new Array(pageFiles.length);
 
-            // อ่านไฟล์ภาพทุกไฟล์ที่เลือกเข้ามา
             Array.from(pageFiles).forEach((file, index) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     pageDataUrls[index] = e.target.result;
                     loadedPages++;
 
-                    // เมื่ออ่านครบทุกไฟล์แล้ว ทำการบันทึก
                     if (loadedPages === pageFiles.length) {
-                        const newChapter = {
-                            id: Date.now(),
-                            title: title,
-                            pages: pageDataUrls
-                        };
+                        try {
+                            const newChapter = {
+                                id: Date.now(),
+                                title: title,
+                                pages: pageDataUrls
+                            };
 
-                        manga.chapters.push(newChapter);
-                        saveData(); // บันทึกลง LocalStorage
-                        alert('เพิ่มตอนใหม่สำเร็จ!');
-                        
-                        document.getElementById('new-chapter-title').value = '';
-                        document.getElementById('new-chapter-pages').value = '';
-                        showDetail(currentMangaId);
+                            const mangaRef = doc(window.firebaseDb, "mangas", window.currentMangaId);
+                            const docSnap = await getDoc(mangaRef);
+                            const currentChapters = docSnap.data().chapters || [];
+                            currentChapters.push(newChapter);
+
+                            await updateDoc(mangaRef, { chapters: currentChapters });
+                            alert('เพิ่มตอนใหม่สำเร็จ!');
+
+                            document.getElementById('new-chapter-title').value = '';
+                            document.getElementById('new-chapter-pages').value = '';
+                            showDetail(window.currentMangaId);
+                        } catch (error) {
+                            alert('เกิดข้อผิดพลาด: ' + error.message);
+                        }
                     }
                 };
                 reader.readAsDataURL(file);
             });
-        }
+        };
 
-        // อ่านตอนมังงะ
-        function readChapter(mangaId, chapterId) {
-            const manga = mangaData.find(m => m.id === mangaId);
-            const chapter = manga.chapters.find(c => c.id === chapterId);
+        window.readChapter = async function(mangaId, chapterIndex) {
+            const docRef = doc(window.firebaseDb, "mangas", mangaId);
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) return;
+
+            const manga = docSnap.data();
+            const chapter = manga.chapters[chapterIndex];
             if (!chapter) return;
 
             document.getElementById('read-chapter-title').innerText = `${manga.title} - ${chapter.title}`;
@@ -547,14 +562,8 @@
                 <img src="${imgUrl}" alt="Manga Page">
             `).join('');
 
-            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-            document.getElementById('read-section').classList.add('active');
-            window.scrollTo(0, 0);
-        }
-
-        // เริ่มต้นรันระบบครั้งแรก
-        updateAuthNav();
-        renderMangaList();
+            switchSection('read-section');
+        };
     </script>
 </body>
 </html>
